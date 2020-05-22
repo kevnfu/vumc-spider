@@ -15,6 +15,10 @@ class Page(scrapy.Item):
     emails = scrapy.Field()
     phone_numbers = scrapy.Field()
 
+    def __repr__(self):
+        return repr(dict(title=self["title"], url=self["url"]))
+
 class BrokenLink(scrapy.Item):
     url = scrapy.Field()
     status = scrapy.Field()
+    referer = scrapy.Field()

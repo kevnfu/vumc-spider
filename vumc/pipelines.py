@@ -10,8 +10,8 @@ BUFSIZE = 1
 
 class VumcPipeline(object):
     def open_spider(self, spider):
-        self.pages_file = open('pages.txt', "w", buffering=BUFSIZE)
-        self.broken_links = open('broken.txt', "w", buffering=BUFSIZE)
+        self.pages_file = open('pages.txt', "w", buffering=BUFSIZE, encoding='utf-8')
+        self.broken_links = open('broken.txt', "w", buffering=BUFSIZE, encoding='utf-8')
 
     def close_spider(self, spider):
         self.pages_file.close()
@@ -31,7 +31,7 @@ class VumcPipeline(object):
 
         if item.get('status'): #BrokenLink item
             self.broken_links.write(
-                f"{item['url']} ({item['status']}){NL}"
+                f"{item['url']} ({item['status']}) from {item['referer']}{NL}"
             )
 
 

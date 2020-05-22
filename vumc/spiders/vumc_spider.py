@@ -2,7 +2,7 @@ import re
 import scrapy
 from w3lib.html import remove_tags
 from datetime import datetime
-from scrapy.linkextractors import LinkExtractor
+from scrapy.linkextractors import LinkExtractor, IGNORED_EXTENSIONS
 from vumc.items import Page, BrokenLink
 
 from scrapy.spidermiddlewares.httperror import HttpError
@@ -11,6 +11,7 @@ from twisted.internet.error import TimeoutError, TCPTimedOutError
 
 PHONE_REGEX = re.compile(r'(\d{3}[-\.\s]\d{3}[-\.\s]\d{4})')
 DOMAIN_REGEX = re.compile(r'https://vumc.org/safety')
+ALLOW_PDF =[x for x in IGNORED_EXTENSIONS if x is not "pdf"]
 
 class VumcSpider(scrapy.Spider):
     name = "vumc"
@@ -22,12 +23,16 @@ class VumcSpider(scrapy.Spider):
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parse_page)
 
+    page_link_extractor = LinkExtractor(deny="#", unique=True, restrict_css="article", deny_extensions=ALLOW_PDF)
+    site_link_extractor = LinkExtractor(allow="vumc.org/safety", deny="#")
+    external_link_extractor = LinkExtractor(deny=["vumc.org/safety", "#"])
+    pdf_link_extractor = LinkExtractor(allow=".pdf$", deny_extensions=ALLOW_PDF)
 
     def parse_page(self, response):
-        links = LinkExtractor(deny="#", unique=True, restrict_css="article") \
-            .extract_links(response)
+        # get links from the <article> sections of the page. This is where the main content of the page is.
+        links = self.page_link_extractor.extract_links(response)
 
-        emails = response.css("a[href^=mailto]::text").getall()
+        emails = response.css("a[href^=mailto]::attr(href)").getall()
         emails = [remove_tags(i) for i in emails]
 
         phone = PHONE_REGEX.findall(response.text)
@@ -40,22 +45,23 @@ class VumcSpider(scrapy.Spider):
             phone_numbers=phone,
         )
 
-        site_links = LinkExtractor(allow="vumc.org/safety", deny="#") \
-            .extract_links(response)
+        site_links = self.site_link_extractor.extract_links(response)
+        outside_links = self.external_link_extractor.extract_links(response)
+        pdf_links = self.pdf_link_extractor.extract_links(response)
 
-        outside_links = LinkExtractor(deny=["vumc.org/safety", "#"]) \
-            .extract_links(response)
-
+        # parse /safety links
         for link in site_links:
             yield response.follow(link,
                 callback=self.parse_page,
                 errback=self.errback
             )
 
-        for link in outside_links:
+        # only check for errors for outside and pdf links
+        for link in outside_links + pdf_links:
             yield response.follow(link,
                 callback=self.do_nothing,
                 errback=self.errback,
+                meta={"from_page": response.url}
             )
 
     def errback(self, failure):
@@ -73,7 +79,6 @@ class VumcSpider(scrapy.Spider):
                 url = response.meta.get('redirect_urls')[0]
             else:
                 url = response.url
-
         elif failure.check(DNSLookupError):
             status = "DNS"
             url = failure.request.url
@@ -84,6 +89,7 @@ class VumcSpider(scrapy.Spider):
         return BrokenLink(
             status=status,
             url=url,
+            referer=failure.request.meta.get('from_page')
         )
 
     def do_nothing(self, response):
