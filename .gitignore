@@ -1,3 +1,4 @@
 /.scrapy/*
 *.txt
 *.csv
+*.json
