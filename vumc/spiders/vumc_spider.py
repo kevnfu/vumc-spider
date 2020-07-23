@@ -79,7 +79,8 @@ class VumcSpider(scrapy.Spider):
 
     # perform an arbitrary search, passing data to the item
     def search(self, response):
-        data = SEARCH_REGEX.findall(response.css('article').get())
+        # data = SEARCH_REGEX.findall(response.css('article').get())
+        data = SEARCH_REGEX.findall(response.text)
 
         if data:
             # count occurances of matches and return as a csv string
