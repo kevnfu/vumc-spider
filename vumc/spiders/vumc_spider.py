@@ -12,9 +12,9 @@ from twisted.internet.error import TimeoutError, TCPTimedOutError
 from collections import Counter
 
 PHONE_REGEX = re.compile(r'(\d{3}[-\.\s]\d{3}[-\.\s]\d{4})')
-ALLOW_PDF =[x for x in IGNORED_EXTENSIONS if x is not "pdf"]
+ALLOW_PDF =[x for x in IGNORED_EXTENSIONS if x != "pdf"]
 
-SEARCH_REGEX = re.compile(r'VEHS|Vanderbilt Environmental Health & Safety|Vanderbilt Environmental Health and Safety', flags=re.IGNORECASE)
+SEARCH_REGEX = re.compile(r'robin\.trundy@vumc\.org', flags=re.IGNORECASE)
 
 class VumcSpider(scrapy.Spider):
     name = "vumc"
@@ -107,7 +107,7 @@ class VumcSpider(scrapy.Spider):
             response = failure.value.response
             status = response.status
 
-            if status is 401:
+            if status == 401:
 
                 return response.follow(
                     url=response.url,
